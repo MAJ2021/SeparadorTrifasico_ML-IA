@@ -1,19 +1,24 @@
 FROM python:3.11-slim
 
+# Evita que Python genere archivos .pyc y permite logs en tiempo real
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-# Copiar código fuente desde el contexto raíz
-COPY Dashboard/ /app/Dashboard/
-COPY Simulacion/ /app/Simulacion/
-
-# Copiar requirements desde Simulacion
-COPY Simulacion/requirements.txt /app/
-
-# Instalar dependencias
+# Instalar dependencias primero para aprovechar el caché de capas de Docker
+COPY Simulacion/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Crear carpeta de datos dentro del contenedor
+# Copiar el código fuente
+COPY Dashboard/ ./Dashboard/
+COPY Simulacion/ ./Simulacion/
+
+# Crear carpeta para persistencia de datos
 RUN mkdir -p /app/DataBase
 
-# Comando por defecto: lanzar Streamlit
+# Exponer el puerto de Streamlit
+EXPOSE 8501
+
+# Ejecutar usando la ruta relativa al WORKDIR
 CMD ["streamlit", "run", "Simulacion/dataset_generator_v50_1.py", "--server.port=8501", "--server.address=0.0.0.0"]
