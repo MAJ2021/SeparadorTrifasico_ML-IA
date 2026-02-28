@@ -1,6 +1,8 @@
-pip==26.0.1
+# No forzamos pip a 26, dejamos que el entorno use pip 24
+# (esto evita conflictos en plataformas que aún no soportan pip más nuevo)
+
 streamlit==1.32.0
-rich==13.7.0
+rich==13.7.0          # Compatible con Streamlit 1.32.0 (acepta <14)
 pygments==2.19.2
 markdown-it-py==4.0.0
 mdurl==0.1.2
