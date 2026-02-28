@@ -1,18 +1,19 @@
-# No forzamos pip a 26, dejamos que el entorno use pip 24
-# (esto evita conflictos en plataformas que aún no soportan pip más nuevo)
-
-streamlit==1.32.0
-rich==13.7.0          # Compatible con Streamlit 1.32.0 (acepta <14)
-pygments==2.19.2
-markdown-it-py==4.0.0
-mdurl==0.1.2
-altair==4.2.2
-pandas==2.1.4
+# --- Base de Cálculo (Compatibilidad NumPy 1.x) ---
 numpy==1.26.4
-matplotlib==3.8.3
+pandas==2.1.4
 scipy==1.12.0
+
+# --- Framework Principal ---
+streamlit==1.32.0
+
+# --- Visualización (Soportan NumPy 1.26) ---
+matplotlib==3.8.3
+altair==5.2.0
+
+# --- Utilidades y Serialización ---
 pyarrow==15.0.2
 protobuf==3.20.3
-
-
-
+rich==13.7.1
+pygments==2.17.2
+markdown-it-py==3.0.0
+mdurl==0.1.2
