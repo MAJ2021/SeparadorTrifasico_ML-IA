@@ -8,7 +8,8 @@ WORKDIR /app
 
 # Instalar dependencias primero para aprovechar el caché de capas de Docker
 COPY Simulacion/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código fuente
 COPY Dashboard/ ./Dashboard/
