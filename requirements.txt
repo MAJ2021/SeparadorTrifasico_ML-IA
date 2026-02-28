@@ -1,19 +1,19 @@
-# --- Base de Cálculo (Compatibilidad NumPy 1.x) ---
+# --- Core y NumPy (Fijado) ---
 numpy==1.26.4
 pandas==2.1.4
 scipy==1.12.0
 
-# --- Framework Principal ---
+# --- Streamlit y UI (Compatibilidad garantizada) ---
 streamlit==1.32.0
-
-# --- Visualización (Soportan NumPy 1.26) ---
-matplotlib==3.8.3
 altair==5.2.0
+matplotlib==3.8.3
 
-# --- Utilidades y Serialización ---
-pyarrow==15.0.2
-protobuf==3.20.3
+# --- Dependencias de Renderizado (Versiones estables para Streamlit 1.32) ---
 rich==13.7.1
 pygments==2.17.2
 markdown-it-py==3.0.0
 mdurl==0.1.2
+
+# --- Serialización ---
+pyarrow==15.0.2
+protobuf==3.20.3
