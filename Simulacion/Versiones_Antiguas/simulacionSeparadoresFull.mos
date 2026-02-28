@@ -1,0 +1,97 @@
+// Simulación del modelo con perturbaciones múltiples
+simulate(DosSeparadoresTrifasicosRealistaPerturbaciones_V4, 
+         startTime=0, 
+         stopTime=600, 
+         numberOfIntervals=1000, 
+         method="dassl", 
+         tolerance=1e-6);
+
+// --- Perturbaciones globales ---
+plot({perturbWater.y, perturbOil.y, perturbGas.y}, 
+     title="Perturbaciones aplicadas (agua, petróleo, gas)", 
+     legend=true);
+
+// --- Separador 1 ---
+// Petróleo: nivel, perturbación y apertura válvula
+plot({V_oil1, perturbOil.y, pidOil1.y}, 
+     title="Separador 1 - Petróleo: nivel, perturbación y apertura válvula", 
+     legend=true);
+
+// Agua: nivel, perturbación y apertura válvula
+plot({V_water1, perturbWater.y, pidWater1.y}, 
+     title="Separador 1 - Agua: nivel, perturbación y apertura válvula", 
+     legend=true);
+
+// Gas: presión, perturbación y apertura válvula
+plot({P_gas1, perturbGas.y, pidGas1.y}, 
+     title="Separador 1 - Gas: presión, perturbación y apertura válvula", 
+     legend=true);
+
+// Comparación entrada vs salida
+plot({Qin_oil1, Qout_oil1}, 
+     title="Separador 1 - Caudal petróleo entrada/salida", 
+     legend=true);
+plot({Qin_water1, Qout_water1}, 
+     title="Separador 1 - Caudal agua entrada/salida", 
+     legend=true);
+plot({Qin_gas1, Qout_gas1}, 
+     title="Separador 1 - Caudal gas entrada/salida", 
+     legend=true);
+
+// --- Separador 2 ---
+// Petróleo: nivel, perturbación y apertura válvula
+plot({V_oil2, perturbOil.y, pidOil2.y}, 
+     title="Separador 2 - Petróleo: nivel, perturbación y apertura válvula", 
+     legend=true);
+
+// Agua: nivel, perturbación y apertura válvula
+plot({V_water2, perturbWater.y, pidWater2.y}, 
+     title="Separador 2 - Agua: nivel, perturbación y apertura válvula", 
+     legend=true);
+
+// Gas: presión, perturbación y apertura válvula
+plot({P_gas2, perturbGas.y, pidGas2.y}, 
+     title="Separador 2 - Gas: presión, perturbación y apertura válvula", 
+     legend=true);
+
+// Comparación entrada vs salida
+plot({Qin_oil2, Qout_oil2}, 
+     title="Separador 2 - Caudal petróleo entrada/salida", 
+     legend=true);
+plot({Qin_water2, Qout_water2}, 
+     title="Separador 2 - Caudal agua entrada/salida", 
+     legend=true);
+plot({Qin_gas2, Qout_gas2}, 
+     title="Separador 2 - Caudal gas entrada/salida", 
+     legend=true);
+
+// --- Comparaciones entre separadores ---
+// Niveles de petróleo en paralelo
+plot({V_oil1, V_oil2}, 
+     title="Comparación niveles de petróleo - Separador 1 vs 2", 
+     legend=true);
+
+// Niveles de agua en paralelo
+plot({V_water1, V_water2}, 
+     title="Comparación niveles de agua - Separador 1 vs 2", 
+     legend=true);
+
+// Presiones de gas en paralelo
+plot({P_gas1, P_gas2}, 
+     title="Comparación presiones de gas - Separador 1 vs 2", 
+     legend=true);
+
+// Apertura válvulas de petróleo en paralelo
+plot({pidOil1.y, pidOil2.y}, 
+     title="Comparación apertura válvulas de petróleo - Separador 1 vs 2", 
+     legend=true);
+
+// Apertura válvulas de agua en paralelo
+plot({pidWater1.y, pidWater2.y}, 
+     title="Comparación apertura válvulas de agua - Separador 1 vs 2", 
+     legend=true);
+
+// Apertura válvulas de gas en paralelo
+plot({pidGas1.y, pidGas2.y}, 
+     title="Comparación apertura válvulas de gas - Separador 1 vs 2", 
+     legend=true);

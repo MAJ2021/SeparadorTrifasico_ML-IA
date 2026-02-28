@@ -1,0 +1,23 @@
+
+
+services:
+  simulador:
+    build:
+      context: ..
+      dockerfile: DockerCompose/Dockerfile.simulacion
+    container_name: simulador
+    volumes:
+      - ../DataBase:/app/data
+    command: python main.py
+
+  panel:
+    build:
+      context: ..
+      dockerfile: DockerCompose/Dockerfile.dashboard
+    container_name: panel
+    ports:
+      - "8501:8501"
+    depends_on:
+      - simulador
+    volumes:
+      - ../DataBase:/app/data

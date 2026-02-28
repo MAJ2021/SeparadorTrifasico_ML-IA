@@ -1,0 +1,11 @@
+simulate(DosSeparadoresTrifasicosRealistaPerturbaciones_V6_24h, stopTime=86400, method="dassl");
+
+// Ejemplo de plots
+plot({V_oil1_pct, V_water1_pct, V_oil2_pct, V_water2_pct}, 
+     title="Niveles de aceite y agua (%)", xlabel="Tiempo (s)", ylabel="Porcentaje", legend=true);
+
+plot({P_gas1_pct, P_gas2_pct}, 
+     title="Presión de gas (%)", xlabel="Tiempo (s)", ylabel="Porcentaje", legend=true);
+
+plot({valveOil1_pct, valveWater1_pct, valveGas1_pct, valveOil2_pct, valveWater2_pct, valveGas2_pct}, 
+     title="Aperturas de válvulas (%)", xlabel="Tiempo (s)", ylabel="Porcentaje", legend=true);
