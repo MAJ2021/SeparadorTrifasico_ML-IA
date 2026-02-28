@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import altair as alt
+import os
 
 # Configuración de simulación
 np.random.seed(42)
@@ -65,9 +66,18 @@ df = pd.DataFrame(data, columns=[
     "Temp (°C)", "Presión_in (bar)", "Nivel_total (%)", "Nivel_oil (%)",
     "Presión_gas (bar)", "Señal_PID_valv (%)", "Estado"
 ])
+# -- * correccion 28/02/2026*** ---
+# output_path = f"/app/DataBase/dataset_{escenario}_v50_1.csv"
+# df.to_csv(output_path, index=False)
 
-output_path = f"/app/DataBase/dataset_{escenario}_v50_1.csv"
+# Definir la ruta relativa
+output_dir = "DataBase"
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+output_path = os.path.join(output_dir, f"dataset_{escenario}_v50_1.csv")
 df.to_csv(output_path, index=False)
+# -------- hasta aca modificacion ----------
 
 st.success(f"Dataset generado y guardado en {output_path}")
 
