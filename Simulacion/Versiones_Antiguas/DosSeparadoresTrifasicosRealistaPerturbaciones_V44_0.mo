@@ -1,4 +1,0 @@
-model DosSeparadoresTrifasicosRealistaPerturbaciones_V44_0
-equation
-
-end DosSeparadoresTrifasicosRealistaPerturbaciones_V44_0;
