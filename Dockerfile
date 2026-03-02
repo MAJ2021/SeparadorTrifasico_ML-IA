@@ -24,4 +24,4 @@ RUN mkdir -p /app/DataBase
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "Simulacion/dataset_generator_v50_1.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "Simulacion/dataset_generator_v50_4.py", "--server.port=8501", "--server.address=0.0.0.0"]

@@ -4,36 +4,14 @@ import streamlit as st
 import altair as alt
 import os
 
-# -------------------------------
-# Módulo de caudal bruto + fracciones
-# -------------------------------
-def simulador_separador(caudal_bruto_m3d, frac_agua, frac_oil, frac_gas,
-                        volumen_sep_m3=17, nivel_general_sp=0.75, nivel_oil_sp=0.54):
-    q_agua = caudal_bruto_m3d * frac_agua
-    q_oil  = caudal_bruto_m3d * frac_oil
-    q_gas  = caudal_bruto_m3d * frac_gas
-
-    t_res_dias = volumen_sep_m3 / caudal_bruto_m3d
-    t_res_horas = t_res_dias * 24
-
-    return {
-        "Q_agua (m³/d)": q_agua,
-        "Q_oil (m³/d)": q_oil,
-        "Q_gas (m³/d)": q_gas,
-        "Tiempo Residencia (h)": t_res_horas,
-        "Nivel_total (%)": (q_agua + q_oil)/caudal_bruto_m3d*100,
-        "Nivel_oil (%)": q_oil/caudal_bruto_m3d*100
-    }
-
-# -------------------------------
 # Configuración de simulación
-# -------------------------------
 np.random.seed(42)
 tiempo_total = 600   # segundos de simulación
 paso = 5             # intervalo de registro (s)
 
 def generar_escenario(tipo="estable", q_agua_base=2000, q_oil_base=440, q_gas_base=4000,
-                      temp_base=57, pres_in_base=3.5):
+                      temp_base=57, pres_in_base=3.5,
+                      nivel_total_base=75, nivel_oil_base=54):  # FIX: nuevos parámetros
     registros = []
     for t in range(0, tiempo_total + 1, paso):
         q_agua = np.random.randint(q_agua_base - 200, q_agua_base + 200)
@@ -42,10 +20,15 @@ def generar_escenario(tipo="estable", q_agua_base=2000, q_oil_base=440, q_gas_ba
         temp   = np.random.uniform(temp_base - 2, temp_base + 2)
         pres_in = np.random.uniform(pres_in_base - 0.5, pres_in_base + 0.5)
 
-        nivel_total = np.random.normal(75, 2)
-        nivel_oil   = np.random.normal(54, 2)
+        # FIX: ahora dependen de sliders
+        nivel_total = np.random.normal(nivel_total_base, 2)
+        nivel_oil   = np.random.normal(nivel_oil_base, 2)
+
         pres_gas    = np.random.uniform(3.0, 4.0)
         pid_valv    = np.clip(np.random.normal(50, 10), 0, 100)
+
+        # Calcular caudal bruto total
+        caudal_bruto = q_agua + q_oil + q_gas
 
         if tipo == "perturbado_leve":
             q_agua *= 1.05
@@ -66,39 +49,41 @@ def generar_escenario(tipo="estable", q_agua_base=2000, q_oil_base=440, q_gas_ba
             estado = "Normal"
 
         registros.append([t, q_agua, q_oil, q_gas, temp, pres_in,
-                          nivel_total, nivel_oil, pres_gas, pid_valv, estado])
+                          nivel_total, nivel_oil, pres_gas, pid_valv,
+                          caudal_bruto, estado])
     return registros
 
-# -------------------------------
-# Interfaz Streamlit
-# -------------------------------
-st.title("Generador de Datasets Sintéticos v50.2")
+# --- Interfaz Streamlit ---
+st.title("Generador de Datasets Sintéticos v50.4")
 
-# Selección de escenario
 escenario = st.sidebar.selectbox(
     "Selecciona el escenario",
     ["estable", "perturbado_leve", "perturbado_severo", "fallo_control", "meseta"]
 )
 
-# --- Nuevo bloque: caudal bruto + fracciones ---
-caudal_bruto = st.sidebar.slider("Caudal Bruto (m³/d)", 5000, 8000, 6440)
-frac_agua = st.sidebar.slider("Fracción Agua", 0.2, 0.5, 2000/6440)
-frac_oil  = st.sidebar.slider("Fracción Oil", 0.05, 0.15, 440/6440)
-frac_gas  = 1 - frac_agua - frac_oil
+q_agua_base = st.sidebar.slider("Caudal Agua (m³/d)", 1800, 2200, 2000)
+q_oil_base  = st.sidebar.slider("Caudal Oil (m³/d)", 380, 500, 440)
+q_gas_base  = st.sidebar.slider("Caudal Gas (m³/d)", 2800, 5200, 4000)
+temp_base   = st.sidebar.slider("Temperatura (°C)", 55, 60, 57)
+pres_in_base = st.sidebar.slider("Presión de Entrada (bar)", 3.0, 4.0, 3.5)
 
-# Calcular caudales derivados
-res_sep = simulador_separador(caudal_bruto, frac_agua, frac_oil, frac_gas)
+# FIX: nuevos sliders para niveles
+nivel_total_base = st.sidebar.slider("Nivel Total (%)", 60, 90, 75)
+nivel_oil_base   = st.sidebar.slider("Nivel Oil (%)", 40, 70, 54)
 
-q_agua_base = res_sep["Q_agua (m³/d)"]
-q_oil_base  = res_sep["Q_oil (m³/d)"]
-q_gas_base  = res_sep["Q_gas (m³/d)"]
+# Nuevo slider para caudal bruto y tolerancia
+caudal_bruto_base = st.sidebar.slider("Caudal Bruto Total (m³/d)", 5000, 8000, 6450)
+tolerancia = st.sidebar.slider("Tolerancia validación (%)", 1, 20, 5) / 100.0
 
-# Generar dataset
-data = generar_escenario(escenario, q_agua_base, q_oil_base, q_gas_base)
+# FIX: pasar los nuevos parámetros a la función
+data = generar_escenario(escenario, q_agua_base, q_oil_base, q_gas_base,
+                         temp_base, pres_in_base,
+                         nivel_total_base, nivel_oil_base)
+
 df = pd.DataFrame(data, columns=[
     "Tiempo (s)", "Q_agua (m³/d)", "Q_oil (m³/d)", "Q_gas (m³/d)",
     "Temp (°C)", "Presión_in (bar)", "Nivel_total (%)", "Nivel_oil (%)",
-    "Presión_gas (bar)", "Señal_PID_valv (%)", "Estado"
+    "Presión_gas (bar)", "Señal_PID_valv (%)", "Caudal_bruto (m³/d)", "Estado"
 ])
 
 # Guardar dataset
@@ -106,7 +91,7 @@ output_dir = "DataBase"
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
-output_path = os.path.join(output_dir, f"dataset_{escenario}_v50_2.csv")
+output_path = os.path.join(output_dir, f"dataset_{escenario}_v50_4.csv")
 df.to_csv(output_path, index=False)
 
 st.success(f"Dataset generado y guardado en {output_path}")
@@ -124,11 +109,37 @@ col4.metric("Nivel Total Máx", f"{df['Nivel_total (%)'].max():.1f}%")
 col5.metric("Nivel Oil Máx", f"{df['Nivel_oil (%)'].max():.1f}%")
 col6.metric("Presión Gas Promedio", f"{df['Presión_gas (bar)'].mean():.2f} bar")
 
-# --- Indicadores del separador ---
-st.subheader("Indicadores del Separador (preprocesamiento)")
-st.metric("Tiempo de Residencia (h)", f"{res_sep['Tiempo Residencia (h)']:.2f}")
-st.metric("Nivel Total (%)", f"{res_sep['Nivel_total (%)']:.1f}%")
-st.metric("Nivel Oil (%)", f"{res_sep['Nivel_oil (%)']:.1f}%")
+col7, col8 = st.columns(2)
+col7.metric("Caudal Bruto Promedio", f"{df['Caudal_bruto (m³/d)'].mean():.1f}")
+col8.metric("Caudal Bruto Máx", f"{df['Caudal_bruto (m³/d)'].max():.1f}")
+
+# --- Validación contra producción real ---
+def validar_produccion(df, produccion_real, tolerancia=0.05):
+    resultados = {}
+    for var, ref in produccion_real.items():
+        sim = df[f"Q_{var} (m³/d)"].mean()
+        dentro_rango = abs(sim - ref) <= ref * tolerancia
+        resultados[var] = {
+            "Simulado": sim,
+            "Referencia": ref,
+            "Dentro de rango": dentro_rango
+        }
+    return resultados
+
+def calcular_residencia(volumen_m3=17, caudal_bruto_m3_dia=caudal_bruto_base):
+    return volumen_m3 / caudal_bruto_m3_dia
+
+produccion_real = {"agua":q_agua_base, "oil":q_oil_base, "gas":q_gas_base}
+validacion = validar_produccion(df, produccion_real, tolerancia)
+
+st.subheader("Validación contra producción real")
+for var, res in validacion.items():
+    st.write(f"**{var.capitalize()}** → Simulado: {res['Simulado']:.1f}, "
+             f"Referencia: {res['Referencia']}, "
+             f"Dentro de rango: {res['Dentro de rango']}")
+
+tiempo_residencia = calcular_residencia()
+st.metric("Tiempo de residencia (días)", f"{tiempo_residencia:.4f}")
 
 # --- Tabla completa ---
 st.dataframe(df, use_container_width=True)
@@ -148,11 +159,24 @@ pres_chart = alt.Chart(df).mark_line().encode(
 ).properties(title="Evolución de Presiones")
 st.altair_chart(pres_chart, use_container_width=True)
 
-caudal_df = df.melt(id_vars=["Tiempo (s)"], value_vars=["Q_agua (m³/d)", "Q_oil (m³/d)", "Q_gas (m³/d)"],
-                    var_name="Variable", value_name="Caudal")
+# FIX: ordenar caudales consecutivos incluyendo caudal bruto
+caudal_df = df.melt(
+    id_vars=["Tiempo (s)"],
+    value_vars=["Q_agua (m³/d)", "Q_oil (m³/d)", "Q_gas (m³/d)", "Caudal_bruto (m³/d)"],
+    var_name="Variable", value_name="Caudal"
+)
+
+# Líneas de referencia de campo
+ref_data = pd.DataFrame({
+    "Variable": ["Q_agua (m³/d)", "Q_oil (m³/d)", "Q_gas (m³/d)", "Caudal_bruto (m³/d)"],
+    "Caudal": [2000, 440, 4000, 6440]  # referencia aproximada
+})
+
 caudal_chart = alt.Chart(caudal_df).mark_line().encode(
     x="Tiempo (s)", y="Caudal", color="Variable"
-).properties(title="Evolución de Caudales")
+) + alt.Chart(ref_data).mark_rule().encode(
+    y="Caudal", color="Variable"
+).properties(title="Evolución de Caudales con Referencias")
 st.altair_chart(caudal_chart, use_container_width=True)
 
 # --- Botón de descarga ---
@@ -160,6 +184,6 @@ csv = df.to_csv(index=False).encode("utf-8")
 st.download_button(
     label="Descargar dataset",
     data=csv,
-    file_name=f"dataset_{escenario}_v50_2.csv",
+    file_name=f"dataset_{escenario}_v50_4.csv",
     mime="text/csv",
 )

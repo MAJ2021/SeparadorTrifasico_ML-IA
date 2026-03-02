@@ -1,0 +1,9 @@
+# Forzamos una versión moderna de Streamlit para evitar el error de Altair
+streamlit>=1.35.0
+numpy
+pandas
+scipy
+altair
+matplotlib
+pyarrow
+protobuf==3.20.3
