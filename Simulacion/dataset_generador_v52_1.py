@@ -139,6 +139,7 @@ def generar_pdf_completo(esc, df_a, df_b, carry_ov, blow_by, baja_p, params):
 
 
 # --- PARTE 2: SIDEBAR (CONTROLES, ALERTA DE CAPACIDAD Y WC) ---
+# --- PARTE 2: SIDEBAR (CONTROLES, ALERTA DE CAPACIDAD Y WC) ---
 with st.sidebar:
     st.header("🕹️ Control de Operación")
     escenario = st.selectbox("Escenario", ["Estable", "Bache de Agua (Slug)", "Fallo de Presión", "Ciclo Crítico de Falla"])
@@ -180,66 +181,65 @@ with st.sidebar:
     sp_a = st.number_input("SP Nivel Agua (%)", 10, 90, 68) 
     sp_p = st.number_input("SP Nivel Petróleo (%)", 5, 90, 56) 
 
-    st.divider()
-    # BOTONES DE CONSULTA
-    col_b1, col_b2 = st.columns(2)
-    btn_memoria = col_b1.button("📖 Memoria", use_container_width=True)
-    btn_separacion = col_b2.button("📊 Separación", use_container_width=True)
+    # --- SE ELIMINARON LOS BOTONES DE AQUÍ PARA EVITAR DUPLICADOS ---
 
 st.title(f"🏭 Simulador: 2 Separadores en Paralelo V 1.2")
 
 # --- PARTE 3: MOTOR DE SIMULACIÓN (DETECCIÓN A LOS 10 SEGUNDOS) ---
+# --- PARTE 3: MOTOR DE SIMULACIÓN (SINTONIZADO CON PLANTA REAL) ---
 if st.button("▶️ INICIAR SIMULACIÓN (12 HORAS)"):
+    import math # Para la oscilación senoidal
     paso, duracion = 60, 43200 
+    
     # Reset de alertas GLOBAL al inicio del motor
     st.session_state.c_ov = False
     st.session_state.b_by = False
-    st.session_state.falla_p = False # <--- RESET DE FALLA DE PRESIÓN
+    st.session_state.falla_p = False 
     
     for nombre, split in [("A", dist_a), ("B", 1.0-dist_a)]:
         data, vol = [], 17.0
+        # Mantenemos el inicio desde los Set Points para estabilidad inicial
         h_a, h_p = (sp_a/100)*vol, (sp_p/100)*vol 
-        p_act = 3.5
+        
+        # --- CALIBRACIÓN REAL: Presión según PIT-94142 (3.46 kg/cm2) ---
+        p_act = 3.46 
         
         for t in range(0, duracion + 1, paso):
             t_m = t / 60  
             wc, f_a, v_c = wc_b, False, False
             
-            # Escenarios (Bache y Presión a partir del minuto 60)
+            # Lógica de Escenarios
             if escenario == "Ciclo Crítico de Falla":
                 if 60 < t_m <= 120: f_a = True
                 elif 600 < t_m <= 660: v_c, p_act = True, 2.0
-                else: p_act = 3.5
+                else: p_act = 3.46
             elif escenario == "Bache de Agua (Slug)" and t_m > 60: 
                 wc = 0.95
             elif escenario == "Fallo de Presión" and t_m > 60: 
                 p_act = 1.2 
             
-            qi_b = (q_tot * split / 86400) * np.random.normal(1.0, 0.01)
-            qi_a, qi_p = qi_b * wc, qi_b * (1 - wc)
-            k = 0.0025
+            # --- EFECTO SERRUCHO (Oscilación rítmica de la planta) ---
+            osc = math.sin(t_m * 0.4) * 0.4 # Amplitud de ±0.4%
+            ruido_real = (np.random.normal(1.0, 0.005) + (osc/100))
             
-            n_a_act, n_p_act = np.clip((h_a/vol)*100, 0, 100), np.clip((h_p/vol)*100, 0, 100)
-            n_t_act = np.clip(n_a_act + n_p_act, 0, 100)
+            qi_b = (q_tot * split / 86400) * ruido_real
+            qi_a, qi_p = qi_b * wc, qi_b * (1 - wc)
+            
+            # --- AJUSTE DE VÁLVULA: k calibrado para apertura de 25% ---
+            k = 0.0042 
+            
+            # Niveles con redondeo instrumental y oscilación integrada
+            n_a_act = round(np.clip((h_a/vol)*100, 0, 100) + osc, 2)
+            n_p_act = round(np.clip((h_p/vol)*100, 0, 100), 2)
+            n_t_act = round(n_a_act + n_p_act, 2)
 
-            # --- DETECCIÓN DE ALERTAS (DESPUÉS DE 10 SEGUNDOS) ---
-            # --- DETECCIÓN DE ALERTAS (DENTRO DEL BUCLE t > 10) ---
-            # --- DENTRO DEL BUCLE DEL MOTOR (PARTE 3) ---
+            # --- DETECCIÓN DE ALERTAS (Memoria Persistente) ---
             if t > 10: 
-            # Detección de CARRY-OVER (Bache de agua)
-             if n_t_act >= 90: 
-                 st.session_state.c_ov = True  # Se queda en True aunque baje después
-    
-            # Detección de BLOW-BY (Nivel bajo)
-            if n_t_act <= 10: 
-                st.session_state.b_by = True
-        
-            # Detección de FALLA DE PRESIÓN
-            if p_act < 2.5: 
-                st.session_state.falla_p = True
+                if n_t_act >= 90: st.session_state.c_ov = True  
+                if n_t_act <= 10: st.session_state.b_by = True
+                if p_act < 2.5: st.session_state.falla_p = True
 
-
-            # Lógica de Salida (Válvulas)
+            # Control de Salida (Lógica de Válvulas LV-141)
             q_o_a = k * p_act * (n_a_act - sp_a) if n_a_act > sp_a else 0
             err_p, err_t = n_p_act - sp_p, n_t_act - sp_t
             if f_a: q_o_a, q_o_p = 0, k * p_act * (n_p_act - sp_p)
@@ -247,12 +247,11 @@ if st.button("▶️ INICIAR SIMULACIÓN (12 HORAS)"):
             else: q_o_p = k * p_act * max(err_p, err_t) if (err_p > 0 or err_t > 0) else 0
 
             # Balance de Masa
-            q_o_a, q_o_p = max(0, min(q_o_a, (h_a/paso)+qi_a)), max(0, min(q_o_p, (h_p/paso)+qi_p))
             h_a += (qi_a - q_o_a) * paso
             h_p += (qi_p - q_o_p) * paso
             h_a, h_p = np.clip(h_a, 0, vol), np.clip(h_p, 0, vol - h_a)
 
-            data.append({"Tiempo (h)": round(t_m/60, 2), "Nivel_Total": round(n_t_act, 2), "Nivel_Agua": round(n_a_act, 2), "Nivel_Petroleo": round(n_p_act, 2), "Resid": round((h_a/qi_a/60) if qi_a>0 else 0, 2)})
+            data.append({"Tiempo (h)": round(t_m/60, 2), "Nivel_Total": n_t_act, "Nivel_Agua": n_a_act, "Nivel_Petroleo": n_p_act, "Resid": round((h_a/qi_a/60) if qi_a>0 else 0, 2)})
             
         df_res = pd.DataFrame(data)
         df_res.to_csv(os.path.join(OUTPUT_DIR, f"dataset_{nombre}.csv"), index=False)
