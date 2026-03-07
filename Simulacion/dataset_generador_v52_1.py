@@ -187,71 +187,68 @@ st.title(f"🏭 Simulador: 2 Separadores en Paralelo V 1.2")
 
 # --- PARTE 3: MOTOR DE SIMULACIÓN (DETECCIÓN A LOS 10 SEGUNDOS) ---
 # --- PARTE 3: MOTOR DE SIMULACIÓN (SINTONIZADO CON PLANTA REAL) ---
+# --- PARTE 3: MOTOR SINTONIZADO (ACUMULACIÓN REAL DE PETRÓLEO 54%) ---
+# --- PARTE 3: MOTOR CORREGIDO PARA NIVEL DE PETRÓLEO REAL ---
+# --- PARTE 3: MOTOR DE 3 CUBAS (PUESTO FLORES V1.3) ---
 if st.button("▶️ INICIAR SIMULACIÓN (12 HORAS)"):
-    import math # Para la oscilación senoidal
+    import math
     paso, duracion = 60, 43200 
-    
-    # Reset de alertas GLOBAL al inicio del motor
-    st.session_state.c_ov = False
-    st.session_state.b_by = False
-    st.session_state.falla_p = False 
+    st.session_state.c_ov = False; st.session_state.b_by = False; st.session_state.falla_p = False 
     
     for nombre, split in [("A", dist_a), ("B", 1.0-dist_a)]:
-        data, vol = [], 17.0
-        # Mantenemos el inicio desde los Set Points para estabilidad inicial
-        h_a, h_p = (sp_a/100)*vol, (sp_p/100)*vol 
-        
-        # --- CALIBRACIÓN REAL: Presión según PIT-94142 (3.46 kg/cm2) ---
+        data = []
+        vol_total = 17.0
+        # Inicialización de las 3 cubas (en m3)
+        h_entrada = (sp_t/100)*vol_total  # Cuba de entrada (Nivel Total)
+        h_agua = (sp_a/100)*vol_total     # Cuba de agua (LIT-141)
+        h_oil = (sp_p/100)*vol_total      # Cuba de petróleo (Oil Box)
         p_act = 3.46 
         
         for t in range(0, duracion + 1, paso):
-            t_m = t / 60  
-            wc, f_a, v_c = wc_b, False, False
+            t_m = t / 60; wc = wc_b
+            if escenario == "Bache de Agua (Slug)" and t_m > 60: wc = 0.95
+            elif escenario == "Fallo de Presión" and t_m > 60: p_act = 1.2 
             
-            # Lógica de Escenarios
-            if escenario == "Ciclo Crítico de Falla":
-                if 60 < t_m <= 120: f_a = True
-                elif 600 < t_m <= 660: v_c, p_act = True, 2.0
-                else: p_act = 3.46
-            elif escenario == "Bache de Agua (Slug)" and t_m > 60: 
-                wc = 0.95
-            elif escenario == "Fallo de Presión" and t_m > 60: 
-                p_act = 1.2 
-            
-            # --- EFECTO SERRUCHO (Oscilación rítmica de la planta) ---
-            osc = math.sin(t_m * 0.4) * 0.4 # Amplitud de ±0.4%
-            ruido_real = (np.random.normal(1.0, 0.005) + (osc/100))
-            
-            qi_b = (q_tot * split / 86400) * ruido_real
+            # Entrada de fluido a la Cuba de Entrada
+            osc = math.sin(t_m * 0.4) * 0.4
+            qi_b = (q_tot * split / 86400) * (np.random.normal(1.0, 0.005) + (osc/100))
             qi_a, qi_p = qi_b * wc, qi_b * (1 - wc)
             
-            # --- AJUSTE DE VÁLVULA: k calibrado para apertura de 25% ---
-            k = 0.0042 
+            # Coeficientes de válvulas (LV-141 y LV-145)
+            k_a = 0.0042 
+            k_p = 0.0042 
             
-            # Niveles con redondeo instrumental y oscilación integrada
-            n_a_act = round(np.clip((h_a/vol)*100, 0, 100) + osc, 2)
-            n_p_act = round(np.clip((h_p/vol)*100, 0, 100), 2)
-            n_t_act = round(n_a_act + n_p_act, 2)
+            # --- LÓGICA DE LAS 3 CUBAS ---
+            # 1. Los niveles actuales (%)
+            n_t_act = round(np.clip((h_entrada/vol_total)*100, 0, 100) + osc, 2)
+            n_a_act = round(np.clip((h_agua/vol_total)*100, 0, 100), 2)
+            n_p_act = round(np.clip((h_oil/vol_total)*100, 0, 100), 2)
 
-            # --- DETECCIÓN DE ALERTAS (Memoria Persistente) ---
-            if t > 10: 
-                if n_t_act >= 90: st.session_state.c_ov = True  
-                if n_t_act <= 10: st.session_state.b_by = True
-                if p_act < 2.5: st.session_state.falla_p = True
+            # 2. Control de Salida (Solo cubas de Agua y Oil tienen válvulas)
+            q_o_a = k_a * p_act * (n_a_act - sp_a) if n_a_act > sp_a else 0
+            q_o_p = k_p * p_act * (n_p_act - sp_p) if n_p_act > sp_p else 0
 
-            # Control de Salida (Lógica de Válvulas LV-141)
-            q_o_a = k * p_act * (n_a_act - sp_a) if n_a_act > sp_a else 0
-            err_p, err_t = n_p_act - sp_p, n_t_act - sp_t
-            if f_a: q_o_a, q_o_p = 0, k * p_act * (n_p_act - sp_p)
-            elif v_c: q_o_a, q_o_p = k * p_act * 20, k * p_act * 10
-            else: q_o_p = k * p_act * max(err_p, err_t) if (err_p > 0 or err_t > 0) else 0
+            # 3. Transferencia entre cubas (Gravedad/Vertedero)
+            # El agua decanta de la entrada a la cuba de agua
+            transfer_agua = qi_a 
+            # El petróleo rebosa de la entrada a la cuba de oil
+            transfer_oil = qi_p 
 
-            # Balance de Masa
-            h_a += (qi_a - q_o_a) * paso
-            h_p += (qi_p - q_o_p) * paso
-            h_a, h_p = np.clip(h_a, 0, vol), np.clip(h_p, 0, vol - h_a)
+            # Balance Cuba de Entrada (Solo indicador)
+            h_entrada += (qi_b - (transfer_agua + transfer_oil)) * paso
+            
+            # Balance Cuba de Agua (Lazo LIT-141 -> LV-141)
+            h_agua += (transfer_agua - q_o_a) * paso
+            
+            # Balance Cuba de Petróleo (Lazo LIT-145 -> LV-145)
+            h_oil += (transfer_oil - q_o_p) * paso
+            
+            # Clips de seguridad física
+            h_entrada = np.clip(h_entrada, 0, vol_total)
+            h_agua = np.clip(h_agua, 0, vol_total)
+            h_oil = np.clip(h_oil, 0, vol_total)
 
-            data.append({"Tiempo (h)": round(t_m/60, 2), "Nivel_Total": n_t_act, "Nivel_Agua": n_a_act, "Nivel_Petroleo": n_p_act, "Resid": round((h_a/qi_a/60) if qi_a>0 else 0, 2)})
+            data.append({"Tiempo (h)": round(t_m/60, 2), "Nivel_Total": n_t_act, "Nivel_Agua": n_a_act, "Nivel_Petroleo": n_p_act, "Resid": round((h_agua/qi_a/60) if qi_a>0 else 0, 2)})
             
         df_res = pd.DataFrame(data)
         df_res.to_csv(os.path.join(OUTPUT_DIR, f"dataset_{nombre}.csv"), index=False)
