@@ -40,4 +40,4 @@ EXPOSE 8502
 
 # Tip: Si vas a usar los CSV generados en el puerto 8501 dentro del app.py del 8502, 
 # asegúrate de que ambos apunten a /app/DataBase/
-CMD ["sh", "-c", "streamlit run Simulacion/dataset_generador_v52_1.py --server.port=8501 --server.address=0.0.0.0 & streamlit run Dashboard/app.py --server.port=8502 --server.address=0.0.0.0"]
+CMD ["sh", "-c", "streamlit run Simulacion/dataset_generador_v52_2.py --server.port=8501 --server.address=0.0.0.0 & streamlit run Dashboard/app.py --server.port=8502 --server.address=0.0.0.0"]
